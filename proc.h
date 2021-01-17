@@ -1,3 +1,7 @@
+#ifndef _PSTAT_H_
+#define _PSTAT_H_
+
+#include "param.h"
 // Per-CPU state
 struct cpu {
   uchar apicid;                // Local APIC ID
@@ -49,6 +53,8 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  int tickets ;                // nuber of tickets that a process have
+  int counter ;
 };
 
 // Process memory is laid out contiguously, low addresses first:
@@ -56,3 +62,13 @@ struct proc {
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
+
+struct pstat {
+    int num_processes;
+    int inuse[NPROC];   // whether this slot of the process table is in use (1 or 0)
+    int pids[NPROC];       
+    int ticks[NPROC];       // ticks = number of times process has been scheduled
+    int tickets[NPROC];     // tickets = number of tickets set by settickets()
+};
+
+#endif // _PSTAT_H_

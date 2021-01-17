@@ -6,6 +6,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "pstat.h"
 
 struct {
   struct spinlock lock;
@@ -194,11 +195,13 @@ fork(void)
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
+    // np->tickets = 1 ;
     return -1;
   }
   np->sz = curproc->sz;
   np->parent = curproc;
   *np->tf = *curproc->tf;
+  np->tickets = curproc->tickets ;
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
@@ -325,7 +328,8 @@ scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
-  
+  struct pstat *stat ;
+  stat->num_processes = 0 ;
   for(;;){
     // Enable interrupts on this processor.
     sti();
@@ -333,8 +337,14 @@ scheduler(void)
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
+      if(p->state != RUNNABLE){
         continue;
+      }
+      stat->num_processes ++ ;
+      stat->pids[stat->num_processes] = p->pid ;
+      stat->inuse[stat->num_processes] = 0 ;
+      stat->tickets[stat->num_processes] = p->tickets ;
+     
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
@@ -342,8 +352,9 @@ scheduler(void)
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
-
+      p->counter ++ ;
       swtch(&(c->scheduler), p->context);
+      stat->ticks[stat->num_processes]=p->tickets;
       switchkvm();
 
       // Process is done running for now.
