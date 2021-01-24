@@ -11,6 +11,7 @@
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
+  struct pstat *pstat;
 } ptable;
 
 static struct proc *initproc;
@@ -195,7 +196,7 @@ fork(void)
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
-    // np->tickets = 1 ;
+    np->tickets = 1 ;
     return -1;
   }
   np->sz = curproc->sz;
@@ -328,8 +329,8 @@ scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
-  struct pstat *stat ;
-  stat->num_processes = 0 ;
+  // struct pstat *stat = ptable.pstat;
+  // stat->num_processes = 0 ;
   for(;;){
     // Enable interrupts on this processor.
     sti();
@@ -340,12 +341,7 @@ scheduler(void)
       if(p->state != RUNNABLE){
         continue;
       }
-      stat->num_processes ++ ;
-      stat->pids[stat->num_processes] = p->pid ;
-      stat->inuse[stat->num_processes] = 0 ;
-      stat->tickets[stat->num_processes] = p->tickets ;
-     
-
+  
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
@@ -354,9 +350,8 @@ scheduler(void)
       p->state = RUNNING;
       p->counter ++ ;
       swtch(&(c->scheduler), p->context);
-      stat->ticks[stat->num_processes]=p->tickets;
       switchkvm();
-
+      p->ticks = uptime();
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
@@ -364,6 +359,42 @@ scheduler(void)
     release(&ptable.lock);
 
   }
+}
+int
+getprocessesinfo(struct pstat* ps) {
+  int i = 0;
+  struct proc *p;
+  acquire(&ptable.lock);
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    ps->pids[i] = p->pid;
+    ps->inuse[i] = p->state != UNUSED;
+    ps->tickets[i] = p->tickets;
+    ps->ticks[i] = p->ticks;
+    i++;
+  }
+  release(&ptable.lock);
+  return 0;
+}
+
+int
+cps()
+{
+  struct proc *p;
+  //Enables interrupts on this processor.
+  sti();
+  //Loop over process table looking for process with pid.
+  acquire(&ptable.lock);
+  cprintf("name \t pid \t state \t Tickets \t Ticks\n");
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+  if(p->state == SLEEPING)
+  cprintf("%s \t %d \t SLEEPING \t %d \n ", p->name,p->pid,p->tickets,p->ticks);
+  else if(p->state == RUNNING)
+  cprintf("%s \t %d \t RUNNING \t %d \n ", p->name,p->pid,p->tickets,p->ticks);
+  else if(p->state == RUNNABLE)
+  cprintf("%s \t %d \t RUNNABLE \t %d \n ", p->name,p->pid,p->tickets,p->ticks);
+  }
+  release(&ptable.lock);
+  return 23;
 }
 
 // Enter scheduler.  Must hold only ptable.lock

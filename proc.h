@@ -55,6 +55,7 @@ struct proc {
   char name[16];               // Process name (debugging)
   int tickets ;                // nuber of tickets that a process have
   int counter ;
+  int ticks;
 };
 
 // Process memory is laid out contiguously, low addresses first:

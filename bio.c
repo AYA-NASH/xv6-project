@@ -26,6 +26,7 @@
 #include "fs.h"
 #include "buf.h"
 
+
 struct {
   struct spinlock lock;
   struct buf buf[NBUF];

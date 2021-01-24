@@ -94,7 +94,14 @@ sys_uptime(void)
 int
 sys_getprocessesinfo(void){
   struct pstat *p;
-   if(argptr(1, (void*)&p , sizeof(*p)) < 0)
-    return -1;
-  return getprocessesinfo(p);
+    if (argptr(0, (char **)&p, sizeof(struct pstat)) < 0)
+        return -1;
+    getprocessesinfo(p);
+  return 0;
+}
+
+int
+sys_cps(void)
+{
+ return cps();
 }
